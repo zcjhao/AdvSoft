@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Huddle</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:14px Arial,sans-serif;color:#1d1c1d;background:#fff}
+button{border:0;border-radius:4px;padding:9px 14px;cursor:pointer;font-weight:600}
+input,select,textarea{border:1px solid #bbb;border-radius:4px;padding:9px;font:inherit}
+[data-button-role="primary"]{background-color:#007a5a;color:#ffffff}
+[data-button-role="danger"]{background-color:#e01e5a;color:#ffffff}
+[data-button-role="secondary"]{background-color:#1264a3;color:#ffffff}
+#app{height:100vh}.hidden,[hidden]{display:none!important}
+#auth-modal{display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f8f8}
+#auth-form{background:white;padding:32px;width:360px;box-shadow:0 2px 14px #bbb;border-radius:8px}
+#auth-form>*{display:block;width:100%;margin:10px 0}.error{color:#c00;min-height:20px}
+#layout{display:grid;grid-template-columns:250px 1fr;height:100vh}
+#sidebar{background:#3f0e40;color:white;padding:18px;overflow:auto}.brand{font-size:22px;font-weight:bold;margin-bottom:18px}
+#sidebar button{margin:5px 0}.sideitem{display:block;color:white;padding:8px;border-radius:4px;cursor:pointer}
+#main{display:flex;flex-direction:column;min-width:0}.header{height:72px;border-bottom:1px solid #ddd;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
+#message-list{padding:20px;overflow:auto;flex:1}.message{padding:12px 4px;border-bottom:1px solid #eee}.message-body{white-space:pre-wrap}.composer{padding:14px;border-top:1px solid #ddd;display:flex;gap:8px}.composer input{flex:1}
+#thread-panel{position:fixed;right:0;top:72px;width:370px;height:calc(100vh - 72px);z-index:10;background:#fff;border-left:1px solid #ccc;padding:18px;z-index:4}
+.modal{position:fixed;inset:0;background:#0006;display:flex;align-items:center;justify-content:center;z-index:3}.modal>form,.modal>section{background:white;padding:25px;min-width:350px}
+</style>
+</head>
+<body>
+<div id="app">
+<section id="auth-modal">
+<form id="auth-form" data-testid="auth-form">
+<h1>Huddle</h1><h2 id="auth-title">Sign in</h2>
+<div id="auth-error" data-testid="auth-error" class="error"></div>
+<input name="username" aria-label="Username" required>
+<input name="password" type="password" aria-label="Password" required>
+<input name="display_name" aria-label="Display name">
+<button type="submit" id="auth-submit" data-testid="auth-submit" data-button-role="primary">Sign in</button>
+<button type="button" id="auth-toggle" data-testid="auth-toggle" data-button-role="secondary">Create account</button>
+</form></section>
+<section id="workspace-onboarding" hidden style="padding:32px;background:#f8f8f8">
+<form id="workspace-create-form" data-testid="workspace-create-form"><input name="slug"><input name="name"><button type="submit" id="empty-state-create-workspace" data-testid="empty-state-create-workspace" data-button-role="primary">Create workspace</button></form>
+<form id="join-workspace-form" data-testid="join-workspace-form"><input name="workspace"><div id="join-workspace-error" data-testid="join-workspace-error"></div><button id="join-workspace-submit" data-testid="join-workspace-submit" data-button-role="primary">Join workspace</button></form>
+</section>
+<div id="layout" hidden>
+<aside id="sidebar" data-testid="sidebar">
+<div class="brand">Huddle</div><div data-testid="workspace-header" id="workspace-header">Workspace</div>
+<div id="current-user" data-testid="current-user"></div><button id="logout-btn" data-testid="logout-btn" data-button-role="danger">Logout</button>
+<button id="new-channel-btn" data-testid="new-channel-btn" data-button-role="secondary">New channel</button>
+<nav id="channel-list" data-testid="channel-list"></nav><nav id="dms-list" data-testid="dms-list"></nav>
+<button id="workspace-settings-btn" data-testid="workspace-settings-btn" data-button-role="secondary">Workspace settings</button>
+</aside>
+<main id="main">
+<header class="header"><div><h2 id="channel-title" data-testid="channel-title"># general</h2><small id="channel-topic" data-testid="channel-topic"></small></div>
+<button id="channel-settings-btn" data-testid="channel-settings-btn" data-button-role="secondary">Channel settings</button></header>
+<section id="message-list" data-testid="message-list" hidden></section>
+<div id="empty-state" hidden>No messages yet. Start the conversation.</div>
+<form class="composer" id="message-form"><input id="message-input" data-testid="message-input" name="body" placeholder="Message this channel"><button id="send-btn" data-testid="send-btn" data-button-role="primary">Send</button></form>
+</main></div>
+<div id="create-channel-modal" class="modal" hidden><form id="create-channel-form" data-testid="create-channel-form"><h2>Create channel</h2><div id="create-channel-error" data-testid="create-channel-error"></div><input name="name" placeholder="channel-name"><label><input type="checkbox" id="create-channel-private" data-testid="create-channel-private"> Private</label><button id="create-channel-submit" data-testid="create-channel-submit" data-button-role="primary">Create</button><button type="button" id="create-channel-cancel" data-testid="create-channel-cancel" data-button-role="secondary">Cancel</button></form></div>
+<div id="channel-settings-modal" class="modal" hidden><section><h2 id="channel-settings-title" data-testid="channel-settings-title">Channel settings</h2><button id="channel-settings-close" data-testid="channel-settings-close" data-button-role="secondary">Close</button><div id="channel-members-list" data-testid="channel-members-list"></div><form id="channel-add-member-form" data-testid="channel-add-member-form"><input id="channel-add-member-input" data-testid="channel-add-member-input"><button id="channel-add-member-submit" data-testid="channel-add-member-submit" data-button-role="primary">Add member</button></form><input id="channel-topic-input" data-testid="channel-topic-input"><button id="channel-topic-submit" data-testid="channel-topic-submit" data-button-role="primary">Save topic</button><button id="archive-channel-btn" data-testid="archive-channel-btn" data-button-role="danger">Archive</button><button id="unarchive-channel-btn" data-testid="unarchive-channel-btn" data-button-role="secondary">Unarchive</button></section></div>
+<div id="workspace-settings-modal" class="modal" hidden><section><button id="workspace-settings-close" data-testid="workspace-settings-close" data-button-role="secondary">Close</button><input id="workspace-name-input" data-testid="workspace-name-input"><select id="workspace-join-mode" data-testid="workspace-join-mode"><option>open</option><option>invite_only</option></select><button id="workspace-general-submit" data-testid="workspace-general-submit" data-button-role="primary">Save</button><button id="settings-tab-members" data-testid="settings-tab-members">Members</button><button id="settings-tab-invitations" data-testid="settings-tab-invitations">Invitations</button><button id="settings-tab-general" data-testid="settings-tab-general">General</button><div id="settings-pane-members" data-testid="settings-pane-members"><div class="member-row" data-testid="member-row"><span class="role-badge" data-testid="role-badge"></span><select class="role-select" data-testid="role-select"></select></div></div><div id="settings-pane-invitations" data-testid="settings-pane-invitations"><button id="create-invitation-btn" data-testid="create-invitation-btn" data-button-role="secondary">Invite</button><form id="create-invitation-form" data-testid="create-invitation-form"><button id="create-invitation-submit" data-testid="create-invitation-submit" data-button-role="primary">Create invitation</button></form><div id="invitations-list" data-testid="invitations-list"><span id="invitation-code" data-testid="invitation-code"></span></div></div><div id="settings-pane-general" data-testid="settings-pane-general"></div></section></div>
+<section id="thread-panel" data-testid="thread-panel" hidden><button id="close-thread" data-testid="close-thread" data-button-role="secondary">Close</button><div id="thread-messages"></div><form><input id="thread-input" data-testid="thread-input"><button id="thread-send" data-testid="thread-send" data-button-role="primary">Reply</button></form></section>
+</div>
+<script>
+let token=localStorage.getItem('huddle.token')||new URLSearchParams(location.search).get('token'),me=null,ws=null,cur=null,channels=[];
+const $=x=>document.querySelector(x),api=async(method,path,body)=>{let o={method,headers:{}};if(token)o.headers.Authorization='Bearer '+token;if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}let r=await fetch('/api'+path,o),d=await r.json().catch(()=>({}));return{status:r.status,data:d}};
+function showAuth(){$('#auth-modal').hidden=false;$('#layout').hidden=true;$('#workspace-onboarding').hidden=true;$('#auth-form').dataset.mode='login';$('#auth-title').textContent='Sign in';$('#auth-submit').textContent='Sign in'}
+function showApp(){$('#auth-modal').hidden=true;$('#layout').hidden=false;$('#workspace-onboarding').hidden=true;$('#current-user').textContent=me.username}
+async function boot(){if(!token){showAuth();return}let r=await api('GET','/auth/me');if(r.status!==200){token=null;localStorage.removeItem('huddle.token');showAuth();return}me=r.data.user;showApp();await renderSidebar()}
+async function renderSidebar(){let r=await api('GET','/workspaces');if(!r.data.workspaces?.length){$('#layout').hidden=true;$('#workspace-onboarding').hidden=false;return}ws=r.data.workspaces[0];$('#workspace-header').textContent=ws.name;let d=await api('GET','/workspaces/'+encodeURIComponent(ws.slug));channels=d.data.channels||[];$('#channel-list').innerHTML='';channels.forEach(ch=>{let e=document.createElement('div');e.className='sideitem';e.dataset.testid='channel-entry';e.dataset.channelId=ch.id;e.dataset.channelName=ch.name;e.textContent='# '+ch.name;e.onclick=()=>selectChannel(ch.id);$('#channel-list').append(e)});if(channels.length)await selectChannel((channels.find(x=>x.name==='general')||channels[0]).id)}
+async function selectChannel(id){let fresh=ws?await api('GET','/workspaces/'+encodeURIComponent(ws.slug)):null;if(fresh&&fresh.status===200)channels=fresh.data.channels||channels;cur=channels.find(x=>String(x.id)===String(id));if(!cur)return;$('#channel-title').textContent='# '+cur.name;$('#channel-topic').textContent=cur.topic||'';let r=await api('GET','/channels/'+cur.id+'/messages'),list=$('#message-list');list.hidden=false;list.innerHTML='';if(!(r.data.messages||[]).length){let e=document.createElement('div');e.dataset.testid='empty-channel';e.textContent='No messages yet. Say hello!';list.append(e)}else(r.data.messages||[]).slice().reverse().forEach(m=>{let e=document.createElement('div');e.dataset.testid='message';e.className='message';e.innerHTML='<b>'+m.author.username+'</b><div data-testid="message-body" class="message-body"></div>';e.querySelector('.message-body').textContent=m.body;list.append(e)});loadMessages()}
+$('#auth-toggle').onclick=()=>{let f=$('#auth-form'),reg=f.dataset.mode!=='register';f.dataset.mode=reg?'register':'login';$('#auth-title').textContent=reg?'Create account':'Sign in';$('#auth-submit').textContent=reg?'Create account':'Sign in'};
+$('#auth-form').dataset.mode='login';
+$('#auth-form').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),r=await api('POST',e.target.dataset.mode==='register'?'/auth/register':'/auth/login',{username:f.get('username'),password:f.get('password'),display_name:f.get('display_name')});if(r.status<200||r.status>=300){$('#auth-error').textContent=r.data.error||'Unable to continue';return}token=r.data.token;me=r.data.user;localStorage.setItem('huddle.token',token);showApp();await renderSidebar()};
+$('#logout-btn').onclick=()=>{localStorage.removeItem('huddle.token');token=null;showAuth()};
+$('#new-channel-btn').onclick=()=>{$('#create-channel-error').textContent='';$('#create-channel-modal').hidden=false};
+$('#create-channel-cancel').onclick=()=>$('#create-channel-modal').hidden=true;
+$('#channel-settings-btn').onclick=()=>$('#channel-settings-modal').hidden=false;
+$('#channel-settings-close').onclick=()=>$('#channel-settings-modal').hidden=true;
+$('#workspace-settings-btn').onclick=()=>$('#workspace-settings-modal').hidden=false;
+$('#workspace-settings-close').onclick=()=>$('#workspace-settings-modal').hidden=true;
+$('#close-thread').onclick=()=>{$('#thread-panel').hidden=true;$('#main').style.marginRight='0'};
+$('#workspace-create-form').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),r=await api('POST','/workspaces',{slug:f.get('slug'),name:f.get('name')});if(r.status===201){showApp();await renderSidebar()}else $('#join-workspace-error').textContent=r.data.error||'Unable to create'};
+$('#create-channel-form').onsubmit=async e=>{e.preventDefault();let f=new FormData(e.target),r=await api('POST','/workspaces/'+ws.slug+'/channels',{name:f.get('name'),is_private:$('#create-channel-private').checked});if(r.status!==201){$('#create-channel-error').textContent=r.data.error||'Unable to create';return}$('#create-channel-error').textContent='';$('#create-channel-modal').hidden=true;await renderSidebar();await selectChannel(r.data.channel.id)};
+$('#channel-topic-submit').onclick=async()=>{if(!cur)return;let r=await api('PATCH','/channels/'+cur.id,{topic:$('#channel-topic-input').value});if(r.status===200){cur.topic=r.data.channel.topic;$('#channel-topic').textContent=cur.topic}};
+document.addEventListener('DOMContentLoaded',boot);if(document.readyState!=='loading')boot();
+</script>
+<script>
+let openParent=null, wsock=null;
+const emojis=['😀','👍','❤️','🎉','😂','🚀','🔥','✅','👀','👏'];
+async function loadMessages(){
+ if(!cur)return;
+ let r=await api('GET','/channels/'+cur.id+'/messages'),list=$('#message-list'); list.hidden=false; list.innerHTML='';
+ (r.data.messages||[]).slice().reverse().forEach(renderMessage);
+ if(!r.data.messages?.length){let z=document.createElement('div');z.dataset.testid='empty-channel';z.textContent='No messages yet. Say hello!';list.append(z)}
+ connectSocket();
+}
+function renderMessage(m){
+ let row=document.createElement('div');row.dataset.testid='message';row.dataset.messageId=m.id;row.className='message';
+ let initial=(m.author.display_name||m.author.username||'?')[0].toUpperCase();
+ row.innerHTML='<span data-testid="message-avatar" style="display:inline-flex;background:#611f69;color:white;border-radius:50%;width:30px;height:30px;align-items:center;justify-content:center">'+initial+'</span> <b data-testid="message-author"></b> <time data-testid="message-time"></time><div data-testid="message-body" class="message-body"></div><div class="toolbar"></div><div class="reactions"></div>';
+ row.querySelector('[data-testid="message-author"]').textContent=m.author.display_name||m.author.username;
+ let tm=row.querySelector('[data-testid="message-time"]');tm.title=m.created_at;tm.textContent=new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+ row.querySelector('[data-testid="message-body"]').textContent=m.body;
+ if(m.edited_at){let e=document.createElement('span');e.dataset.testid='message-edited';e.textContent=' (edited)';row.querySelector('[data-testid="message-body"]').append(e)}
+ let bar=row.querySelector('.toolbar');
+ let th=document.createElement('button');th.dataset.testid='open-thread-btn';th.textContent='Reply';th.onclick=()=>openThread(m.id);bar.append(th);
+ let rb=document.createElement('button');rb.dataset.testid='reaction-button';rb.textContent='☺';rb.onclick=()=>showPicker(row,m);bar.append(rb);
+ if(String(m.author_id)===String(me.id)){
+  let eb=document.createElement('button');eb.dataset.testid='message-edit-btn';eb.textContent='Edit';eb.onclick=()=>editRow(row,m);bar.append(eb);
+  let db=document.createElement('button');db.dataset.testid='message-delete-btn';db.textContent='Delete';db.onclick=async()=>{await api('DELETE','/messages/'+m.id);row.remove()};bar.append(db);
+ }
+ if(m.reply_count){let q=document.createElement('span');q.dataset.testid='reply-count';q.textContent=' '+m.reply_count+(m.reply_count===1?' reply':' replies');bar.append(q)}
+ (m.reactions||[]).forEach(x=>{let q=document.createElement('button');q.dataset.testid='reaction-chip';q.dataset.emoji=x.emoji;q.textContent=x.emoji+' '+x.count;q.onclick=async()=>{await api('DELETE','/messages/'+m.id+'/reactions/'+encodeURIComponent(x.emoji));loadMessages()};row.querySelector('.reactions').append(q)});
+ $('#message-list').append(row);
+}
+function editRow(row,m){
+ let body=row.querySelector('[data-testid="message-body"]'), inp=document.createElement('textarea');inp.dataset.testid='message-edit-input';inp.value=m.body;body.replaceWith(inp);inp.focus();
+ let save=document.createElement('button');save.dataset.testid='message-edit-save';save.textContent='Save';row.querySelector('.toolbar').append(save);
+ let done=async()=>{let v=inp.value.trim();if(!v)return;let r=await api('PATCH','/messages/'+m.id,{body:v});if(r.status===200)loadMessages()};save.onclick=done;inp.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();done()}if(e.key==='Escape')loadMessages()};
+}
+function showPicker(row,m){
+ let old=row.querySelector('[data-testid="emoji-picker"]');if(old)old.remove();
+ let p=document.createElement('div');p.dataset.testid='emoji-picker';p.style.display='grid';p.style.gridTemplateColumns='repeat(5,35px)';p.style.position='relative';p.style.zIndex='20';p.style.background='white';p.style.padding='6px';
+ emojis.forEach(em=>{let b=document.createElement('button');b.dataset.testid='emoji-option';b.dataset.emoji=em;b.textContent=em;b.onclick=async()=>{await api('POST','/messages/'+m.id+'/reactions',{emoji:em});p.remove();loadMessages()};p.append(b)});row.append(p);
+}
+async function openThread(id){
+ openParent=id;$('#thread-panel').hidden=false;$('#main').style.marginRight='371px';let r=await api('GET','/messages/'+id+'/replies');let box=$('#thread-messages');box.innerHTML='';
+ (r.data.replies||[]).forEach(x=>{let e=document.createElement('div');e.dataset.testid='thread-message';e.textContent=x.body;box.append(e)});
+}
+window.openThread=openThread;
+async function sendMessage(parent){
+ let inp=parent?$('#thread-input'):$('#message-input'),v=inp.value.trim();if(!v||!cur)return;
+ let r=await api('POST','/channels/'+cur.id+'/messages',{body:v,...(parent?{parent_id:parent}:{})});if(r.status===201){inp.value='';if(parent)openThread(parent);else loadMessages()}
+}
+$('#send-btn').onclick=e=>{e.preventDefault();sendMessage(null)};
+$('#message-form').onsubmit=e=>{e.preventDefault();sendMessage(null)};
+$('#thread-send').onclick=e=>{e.preventDefault();sendMessage(openParent)};
+$('#thread-panel form').onsubmit=e=>{e.preventDefault();sendMessage(openParent)};
+function connectSocket(){
+ if(wsock&&wsock.readyState<=1)return;
+ wsock=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/api/ws?token='+encodeURIComponent(token));
+ wsock.onopen=()=>wsock.send(JSON.stringify({type:'subscribe',channel_id:cur.id}));
+ wsock.onmessage=e=>{let f;try{f=JSON.parse(e.data)}catch(_){return};if(f.channel_id==cur.id&&['message.created','message.reply','message.updated','message.deleted','reaction.added','reaction.removed'].includes(f.type))loadMessages()};
+}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(token&&cur)loadMessages()},500));
+</script></body></html>
